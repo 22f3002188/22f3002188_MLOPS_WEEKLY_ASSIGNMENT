@@ -1,2 +1,15 @@
-/iris.csv
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model artifacts
+models/model.pkl
+
+# OS files
+.DS_Store
+Thumbs.db/iris.csv
 /models
