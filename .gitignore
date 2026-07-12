@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Ignore actual model file
+models/model.pkl
+
+# Ignore dataset
+iris.csv
+
+# OS files
+.DS_Store
+Thumbs.db
