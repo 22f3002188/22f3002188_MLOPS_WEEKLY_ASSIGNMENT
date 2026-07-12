@@ -4,5 +4,4 @@ scikit-learn
 joblib
 feast
 dvc-gs
-cml
 pyarrow
