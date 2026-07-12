@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -25,6 +29,12 @@ jobs:
           pip install dvc dvc-gs
           pip install pyarrow
 
+      - name: Install CML
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y npm
+          npm install -g @dvcorg/cml
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -41,32 +51,29 @@ jobs:
       - name: Verify Files
         run: |
           ls -la
-          ls -la models || true
+          ls -la models
 
-          if [ ! -f iris.csv ]; then
-            echo "iris.csv not found"
-            exit 1
-          fi
+          test -f iris.csv
+          test -f models/model.pkl
 
-          if [ ! -f models/model.pkl ]; then
-            echo "model.pkl not found"
-            exit 1
-          fi
-
-      - name: Run Data Tests
+      - name: Run Data Validation Tests
         run: |
-          pytest tests/test_data.py -v
+          pytest tests/test_data.py -v | tee data_test.txt
 
-      - name: Run Model Tests
+      - name: Run Model Evaluation Tests
         run: |
-          pytest tests/test_model.py -v
+          pytest tests/test_model.py -v | tee model_test.txt
 
       - name: Generate Report
         if: always()
         run: |
           echo "# Week 4 CI Report" > report.md
           echo "" >> report.md
-          echo "Workflow completed." >> report.md
+          echo "## Data Validation Tests" >> report.md
+          cat data_test.txt >> report.md
+          echo "" >> report.md
+          echo "## Model Evaluation Tests" >> report.md
+          cat model_test.txt >> report.md
 
       - name: Upload Report
         if: always()
@@ -74,3 +81,10 @@ jobs:
         with:
           name: ci-report
           path: report.md
+
+      - name: Comment PR with CML
+        if: github.event_name == 'pull_request'
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cml comment create report.md
