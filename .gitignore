@@ -6,10 +6,12 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Model artifacts
+# Ignore actual model file
 models/model.pkl
+
+# Ignore dataset
+iris.csv
 
 # OS files
 .DS_Store
-Thumbs.db/iris.csv
-/models
+Thumbs.db
