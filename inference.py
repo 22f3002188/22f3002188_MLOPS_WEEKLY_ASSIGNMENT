@@ -1,16 +1,31 @@
 import feast
 import pandas as pd
-import joblib
+import mlflow
+import mlflow.pyfunc
 
+# --------------------------------------------------
+# Configure MLflow
+# --------------------------------------------------
+
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+
+# Load latest registered model from MLflow Registry
+model = mlflow.pyfunc.load_model(
+    model_uri="models:/IrisClassifier/latest"
+)
+
+# --------------------------------------------------
 # Connect to Feast
+# --------------------------------------------------
+
 store = feast.FeatureStore(
     repo_path="feature_repo/feature_repo"
 )
 
-# Load trained model
-model = joblib.load("models/model.pkl")
+# --------------------------------------------------
+# Fetch Online Features
+# --------------------------------------------------
 
-# Retrieve online features
 online_features = store.get_online_features(
     features=[
         "iris_features:sepal_length",
@@ -25,13 +40,15 @@ online_features = store.get_online_features(
     ],
 ).to_dict()
 
-# Convert to DataFrame
 df = pd.DataFrame(online_features)
 
-print("Features fetched from Feast Online Store:\n")
+print("\nFeatures fetched from Feast Online Store:\n")
 print(df)
 
-# Prepare features
+# --------------------------------------------------
+# Prepare Features
+# --------------------------------------------------
+
 X = df[
     [
         "sepal_length",
@@ -41,10 +58,13 @@ X = df[
     ]
 ]
 
+# --------------------------------------------------
 # Predict
+# --------------------------------------------------
+
 predictions = model.predict(X)
 
 df["prediction"] = predictions
 
-print("\nPredictions:\n")
+print("\nPredictions\n")
 print(df)
