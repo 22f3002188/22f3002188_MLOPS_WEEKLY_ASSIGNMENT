@@ -5,3 +5,5 @@ joblib
 feast
 dvc-gs
 pyarrow
+mlflow
+mlflow>=3.0.0

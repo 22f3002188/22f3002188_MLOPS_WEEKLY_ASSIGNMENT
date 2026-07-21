@@ -1,23 +1,36 @@
 import feast
 import pandas as pd
-import joblib
+import mlflow
+import mlflow.sklearn
 
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+)
 
-# Connect to Feast
+# --------------------------------------------------
+# Connect to Feast Feature Store
+# --------------------------------------------------
+
 store = feast.FeatureStore(
     repo_path="feature_repo/feature_repo"
 )
 
-# Read labels from CSV
-labels = pd.read_csv("iris.csv")
+# --------------------------------------------------
+# Load Labels
+# --------------------------------------------------
 
-# Convert timestamp
+labels = pd.read_csv("iris.csv")
 labels["event_timestamp"] = pd.to_datetime(labels["event_timestamp"])
 
-# Fetch historical features
+# --------------------------------------------------
+# Fetch Historical Features from Feast
+# --------------------------------------------------
+
 training_df = store.get_historical_features(
     entity_df=labels[["iris_id", "event_timestamp"]],
     features=[
@@ -28,10 +41,14 @@ training_df = store.get_historical_features(
     ],
 ).to_df()
 
-# Add labels
 training_df["species"] = labels["species"]
 
+print("\nTraining Data Preview")
 print(training_df.head())
+
+# --------------------------------------------------
+# Prepare Features and Labels
+# --------------------------------------------------
 
 X = training_df[
     [
@@ -52,20 +69,92 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y,
 )
 
-model = DecisionTreeClassifier(random_state=42)
+# --------------------------------------------------
+# Configure MLflow
+# --------------------------------------------------
 
-model.fit(X_train, y_train)
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+mlflow.set_experiment("Iris_Classification")
 
-pred = model.predict(X_test)
+# --------------------------------------------------
+# Hyperparameter Search
+# --------------------------------------------------
 
-accuracy = accuracy_score(y_test, pred)
+max_depth_values = [2, 3, 5]
+criterion_values = ["gini", "entropy"]
 
-joblib.dump(model, "models/model.pkl")
+best_accuracy = 0.0
+best_model = None
 
-with open("metrics/accuracy.txt", "w") as f:
-    f.write(f"{accuracy:.4f}")
+for depth in max_depth_values:
 
-print("\n==============================")
-print("Training Complete")
-print("Accuracy:", accuracy)
-print("==============================")
+    for criterion in criterion_values:
+
+        with mlflow.start_run():
+
+            print("=" * 50)
+            print(f"Training Model")
+            print(f"max_depth = {depth}")
+            print(f"criterion = {criterion}")
+
+            # Build Model
+            model = DecisionTreeClassifier(
+                max_depth=depth,
+                criterion=criterion,
+                random_state=42,
+            )
+
+            model.fit(X_train, y_train)
+
+            predictions = model.predict(X_test)
+
+            # Metrics
+            accuracy = accuracy_score(y_test, predictions)
+            precision = precision_score(
+                y_test,
+                predictions,
+                average="weighted",
+            )
+
+            recall = recall_score(
+                y_test,
+                predictions,
+                average="weighted",
+            )
+
+            f1 = f1_score(
+                y_test,
+                predictions,
+                average="weighted",
+            )
+
+            # Log Parameters
+            mlflow.log_param("max_depth", depth)
+            mlflow.log_param("criterion", criterion)
+
+            # Log Metrics
+            mlflow.log_metric("accuracy", accuracy)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall", recall)
+            mlflow.log_metric("f1_score", f1)
+
+            # Log Model
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="model",
+                registered_model_name="IrisClassifier",
+            )
+
+            print(f"Accuracy : {accuracy:.4f}")
+            print(f"Precision: {precision:.4f}")
+            print(f"Recall   : {recall:.4f}")
+            print(f"F1 Score : {f1:.4f}")
+
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                best_model = model
+
+print("\n" + "=" * 60)
+print("Training Completed Successfully")
+print(f"Best Accuracy : {best_accuracy:.4f}")
+print("=" * 60)
