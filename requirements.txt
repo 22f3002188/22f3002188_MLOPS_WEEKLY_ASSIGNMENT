@@ -1,9 +1,8 @@
-pytest
+fastapi
+uvicorn
+numpy
 pandas
 scikit-learn
 joblib
-feast
-dvc-gs
-pyarrow
 mlflow
-mlflow>=3.0.0
+feast

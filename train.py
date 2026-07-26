@@ -1,4 +1,6 @@
+import os
 import feast
+import joblib
 import pandas as pd
 import mlflow
 import mlflow.sklearn
@@ -92,8 +94,8 @@ for depth in max_depth_values:
 
         with mlflow.start_run():
 
-            print("=" * 50)
-            print(f"Training Model")
+            print("=" * 60)
+            print("Training Model")
             print(f"max_depth = {depth}")
             print(f"criterion = {criterion}")
 
@@ -110,6 +112,7 @@ for depth in max_depth_values:
 
             # Metrics
             accuracy = accuracy_score(y_test, predictions)
+
             precision = precision_score(
                 y_test,
                 predictions,
@@ -138,7 +141,7 @@ for depth in max_depth_values:
             mlflow.log_metric("recall", recall)
             mlflow.log_metric("f1_score", f1)
 
-            # Log Model
+            # Log Model to MLflow
             mlflow.sklearn.log_model(
                 sk_model=model,
                 artifact_path="model",
@@ -150,11 +153,31 @@ for depth in max_depth_values:
             print(f"Recall   : {recall:.4f}")
             print(f"F1 Score : {f1:.4f}")
 
+            # Keep Best Model
             if accuracy > best_accuracy:
                 best_accuracy = accuracy
                 best_model = model
 
+# --------------------------------------------------
+# Save Best Model
+# --------------------------------------------------
+
+os.makedirs("models", exist_ok=True)
+
+joblib.dump(best_model, "models/model.joblib")
+joblib.dump(best_model, "model.joblib")
+
+print("\nBest model saved successfully!")
+print("Saved to:")
+print("  models/model.joblib")
+print("  model.joblib")
+
+# --------------------------------------------------
+# Summary
+# --------------------------------------------------
+
 print("\n" + "=" * 60)
 print("Training Completed Successfully")
 print(f"Best Accuracy : {best_accuracy:.4f}")
+print("MLflow Tracking : sqlite:///mlflow.db")
 print("=" * 60)
