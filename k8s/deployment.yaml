@@ -17,3 +17,10 @@ spec:
         image: us-central1-docker.pkg.dev/project-56d2d662-7634-434f-a2a/iris-repo/iris-api:latest
         ports:
         - containerPort: 8200
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
