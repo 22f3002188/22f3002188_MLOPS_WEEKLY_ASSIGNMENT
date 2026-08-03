@@ -1,193 +1,223 @@
-# Week 6 – MLOps Assignment
-**IITM BS Roll Number:** 22f3002188
+# Week 7 – Stress Testing, Observability & Scaling the IRIS Pipeline
 
-## Project Overview
+## Student Details
 
-This project demonstrates a complete MLOps deployment pipeline for an IRIS Classification API using Docker, GitHub Actions, Google Artifact Registry, and Google Kubernetes Engine (GKE).
-
-The API predicts the Iris flower species from the following four features:
-
-- Sepal Length
-- Sepal Width
-- Petal Length
-- Petal Width
+- **Name:** Harsh Jayswal
+- **Roll Number:** 22F3002188
+- **Course:** MLOps
+- **Assignment:** Week 7 – Stress Testing, Observability & Scaling
 
 ---
 
-## Technologies Used
+# Objective
 
-- Python
-- FastAPI
-- Docker
-- GitHub Actions
+The objective of this assignment is to evaluate the performance of the deployed IRIS FastAPI application under high concurrent traffic, observe Kubernetes Horizontal Pod Autoscaler (HPA) behavior, monitor the application using Google Cloud Monitoring and Cloud Logging, and analyze system bottlenecks when autoscaling is constrained.
+
+---
+
+# Technologies Used
+
 - Google Cloud Platform (GCP)
-- Google Artifact Registry
 - Google Kubernetes Engine (GKE)
 - Kubernetes
-- MLflow
-- Feast
+- FastAPI
+- Docker
+- Artifact Registry
+- Horizontal Pod Autoscaler (HPA)
+- Cloud Monitoring
+- Cloud Logging
+- wrk
+- GitHub
+- GitHub Actions
 
 ---
 
-## Repository Structure
+# Project Structure
 
 ```
 .
-├── .github/
-│   └── workflows/
-│       └── cd.yml
-├── k8s/
-│   ├── deployment.yaml
-│   └── service.yaml
 ├── Dockerfile
 ├── iris_fastapi.py
 ├── model.joblib
+├── post.lua
 ├── requirements.txt
-├── train.py
-└── README.md
+├── k8s
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── hpa.yaml
+└── tests
 ```
 
 ---
 
-## Task 1 – Pod vs Container
+# Deployment Architecture
 
-### Docker Container
-
-A Docker container packages an application together with all required libraries and dependencies.
-
-### Kubernetes Pod
-
-A Pod is the smallest deployable unit in Kubernetes.
-
-A Pod can contain one or more containers that:
-- share storage
-- share networking
-- share lifecycle
-
-Kubernetes deploys Pods instead of individual containers because Pods provide better scheduling, networking and scalability.
+```
+GitHub Repository
+        │
+        ▼
+Docker Image
+        │
+        ▼
+Artifact Registry
+        │
+        ▼
+Google Kubernetes Engine
+        │
+        ▼
+FastAPI IRIS API
+        │
+        ▼
+wrk Stress Testing
+        │
+        ▼
+Cloud Monitoring + Cloud Logging
+```
 
 ---
 
-## Task 2 – Dockerization
+# Task 1
 
-The IRIS FastAPI application was containerized using Docker.
+The application was deployed on Google Kubernetes Engine using the existing Kubernetes manifests.
 
-Docker image contains:
+Deployment includes:
 
-- FastAPI application
-- Trained ML model
-- Python dependencies
-- Uvicorn server
+- Deployment
+- LoadBalancer Service
+- Horizontal Pod Autoscaler
 
-Build image:
+---
+
+# Task 2 – Stress Testing
+
+The application was stress tested using wrk.
+
+Example command:
 
 ```bash
-docker build -t iris-api .
+wrk -t4 -c1000 -d30s -s post.lua http://<EXTERNAL_IP>/predict/
 ```
 
-Run locally:
+Observed metrics:
 
-```bash
-docker run -d -p 8200:8200 iris-api
-```
+- Requests per second
+- Average latency
+- Socket timeout count
 
 ---
 
-## Task 3 – GCP Service Account
+# Task 3 – Horizontal Pod Autoscaler
 
-A dedicated service account was created.
+Configured HPA:
 
-Required IAM roles:
+```
+Min Replicas : 1
+Max Replicas : 3
+Target CPU   : 50%
+```
 
-- Artifact Registry Writer
-- Container Developer
-- Storage Admin
-- Container Cluster Viewer
+During stress testing:
 
-Credentials were securely stored as GitHub Secrets.
+- HPA increased desired replicas
+- Additional pods were created
+- Scheduler attempted to place new pods
 
 ---
 
-## Task 4 – GitHub Actions
+# Task 4 – Observability
 
-GitHub Actions automatically:
+## Cloud Monitoring
 
-- Builds Docker image
-- Pushes image to Artifact Registry
-- Authenticates with GCP
-- Connects to GKE
-- Updates Kubernetes Deployment
+Observed:
 
-Workflow file:
+- CPU Usage
+- Memory Usage
+- Pod Activity
 
-```
-.github/workflows/cd.yml
-```
+CPU usage increased significantly during stress testing.
 
 ---
 
-## Task 5 – Google Kubernetes Engine Deployment
+## Cloud Logging
 
-Deployment steps:
+Logs Explorer was used to inspect container logs.
 
-- Create GKE Cluster
-- Deploy Kubernetes Deployment
-- Create LoadBalancer Service
-- Expose FastAPI publicly
+Filtered by:
 
-Verify deployment:
-
-```bash
-kubectl get pods
+```
+resource.type="k8s_container"
+cluster_name="iris-cluster"
+container_name="iris-api"
 ```
 
-```bash
-kubectl get services
-```
-
-API Test:
-
-```bash
-curl http://<EXTERNAL-IP>
-```
-
-Prediction:
-
-```bash
-curl -X POST http://<EXTERNAL-IP>/predict/ \
--H "Content-Type: application/json" \
--d '{
-"sepal_length":5.1,
-"sepal_width":3.5,
-"petal_length":1.4,
-"petal_width":0.2
-}'
-```
-
-Example Output
-
-```json
-{
-  "predicted_class":"setosa"
-}
-```
+Application logs were successfully captured.
 
 ---
 
-## Optional Task
+# Task 5 – Bottleneck Analysis
 
-Currently the Docker image contains the trained model (`model.joblib`).
+Autoscaling was restricted by setting
 
-Future improvement:
+```
+maxReplicas: 1
+```
 
-- Pull latest model automatically from MLflow Model Registry during Docker build.
+Stress test:
+
+```
+wrk -t4 -c2000 -d30s -s post.lua http://<EXTERNAL_IP>/predict/
+```
+
+Observed:
+
+- CPU utilization exceeded target
+- HPA could not scale beyond one pod
+- Higher latency
+- Increased request timeouts
 
 ---
 
-## Author
+# Bottleneck Identified
 
-Harsh Jayswal
+While allowing three replicas, Kubernetes attempted to create additional pods.
 
-Roll Number: 22f3002188
+However, two pods remained in Pending state due to:
 
-IIT Madras BS Degree Program
+```
+Insufficient CPU
+```
+
+Scheduler Event:
+
+```
+0/2 nodes are available:
+2 Insufficient cpu
+```
+
+This prevented the application from scaling successfully under heavy load.
+
+---
+
+# Learning Outcomes
+
+Through this assignment I learned:
+
+- Stress testing using wrk
+- Kubernetes Horizontal Pod Autoscaler
+- Kubernetes scheduling behavior
+- Cloud Monitoring dashboards
+- Cloud Logging
+- Resource bottleneck analysis
+- Performance evaluation under high concurrency
+
+---
+
+# Conclusion
+
+The IRIS API was successfully stress tested on GKE.
+
+Cloud Monitoring and Cloud Logging were used to observe system behavior.
+
+The HPA responded to increased load, while scheduler resource constraints demonstrated practical bottlenecks during autoscaling.
+
+This assignment provided hands-on experience with production-grade monitoring and scalability concepts in Kubernetes.
