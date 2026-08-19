@@ -1,60 +1,61 @@
-# Week 8 – MLSecOps: Data Poisoning Attack on IRIS
+# Week 9 MLOps Assignment — Explainability, Fairness, Drift and Governance
 
 ## Overview
 
-This assignment explores **MLSecOps (Machine Learning Security Operations)** and its role in securing the machine learning lifecycle.
+This assignment extends the IRIS machine learning pipeline with responsible
+ML practices including:
 
-The assignment focuses on:
+- Sensitive attribute introduction
+- Fairness analysis using Fairlearn
+- Model explainability using SHAP
+- Data drift detection
+- ML governance through a Model Card
 
-- ML security threat vectors
-- Data poisoning attacks
-- Poisoning the IRIS training data at different severity levels
-- MLflow experiment tracking
-- Comparing model performance under data corruption
-- Data poisoning detection and mitigation
-- Data quantity versus data quality
-
----
-
-## Objectives
-
-The objectives of this assignment are to:
-
-1. Identify major security threat vectors in ML systems.
-2. Simulate data poisoning on the IRIS dataset.
-3. Create 5%, 10%, and 50% poisoned variants.
-4. Train an IRIS classification model on clean and poisoned data.
-5. Track experiments using MLflow.
-6. Compare accuracy, precision, recall, and F1 score.
-7. Analyze the effect of data poisoning.
-8. Discuss production-level MLSecOps mitigation strategies.
-9. Understand the relationship between data quality and data quantity.
+The work was completed on the `week_9` branch.
 
 ---
 
-## Repository Structure
+## Dataset
+
+The Week 9 dataset is based on the IRIS dataset containing 101 samples.
+
+### Class Distribution
+
+| Species | Samples |
+|---|---:|
+| Setosa | 36 |
+| Versicolor | 30 |
+| Virginica | 35 |
+| **Total** | **101** |
+
+The four model features are:
+
+- `sepal_length`
+- `sepal_width`
+- `petal_length`
+- `petal_width`
+
+A randomly assigned `location` attribute with values `0` and `1` was
+introduced for fairness analysis.
+
+The `location` attribute was **not used as a model feature**.
+
+---
+
+# Task 1 — Introduce Location Attribute
+
+A `location` column was randomly assigned to each sample.
+
+Location distribution:
+
+| Location | Samples |
+|---|---:|
+| 0 | 45 |
+| 1 | 56 |
+
+The sensitive attribute is used only for fairness evaluation.
+
+Script:
 
 ```text
-22f3002188_MLOPS_WEEKLY_ASSIGNMENT/
-│
-├── iris.csv
-├── iris.csv.dvc
-├── iris_poisoned_5.csv
-├── iris_poisoned_10.csv
-├── iris_poisoned_50.csv
-│
-├── scripts/
-│   ├── poison_data.py
-│   └── train_mlflow.py
-│
-├── train.py
-├── requirements.txt
-├── mlflow.db
-├── mlruns/
-├── models/
-├── model.joblib
-├── tests/
-├── .dvc/
-├── .github/
-├── .gitignore
-└── README.md
+scripts/add_location.py
